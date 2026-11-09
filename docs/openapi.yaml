@@ -1,0 +1,283 @@
+openapi: 3.0.3
+info:
+  title: Animal API
+  version: 1.0.0
+  description: |
+    REST API for managing animals in a shelter. Built with Go (Gin) and MongoDB.
+
+    **Features:** CRUD, filtering, sorting, pagination, JWT authentication,
+    role-based authorization (user / admin) and input validation.
+
+    **How to try it:** call `POST /api/auth/login` (default admin: `admin` / `admin123`),
+    copy the `token`, click **Authorize** and paste it.
+servers:
+  - url: /
+tags:
+  - name: Auth
+  - name: Animals
+  - name: System
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      summary: Health check
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user (role "user")
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Credentials" }
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "409":
+          description: Username already taken
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and receive a JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Credentials" }
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/animals:
+    get:
+      tags: [Animals]
+      summary: List animals (filtering, sorting, pagination)
+      parameters:
+        - name: species
+          in: query
+          schema: { $ref: "#/components/schemas/Species" }
+        - name: adopted
+          in: query
+          schema: { type: boolean }
+        - name: minAge
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: maxAge
+          in: query
+          schema: { type: integer, minimum: 0 }
+        - name: search
+          in: query
+          description: Case-insensitive search in the name
+          schema: { type: string }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name, age, weight, species, createdAt]
+            default: createdAt
+        - name: order
+          in: query
+          schema: { type: string, enum: [asc, desc], default: asc }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+      responses:
+        "200":
+          description: A page of animals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnimalPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+    post:
+      tags: [Animals]
+      summary: Create an animal (requires login)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnimalInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Animal" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /api/animals/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, example: 6650f1c2a1b2c3d4e5f60789 }
+    get:
+      tags: [Animals]
+      summary: Get one animal
+      responses:
+        "200":
+          description: The animal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Animal" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Animals]
+      summary: Update an animal (owner or admin)
+      description: Regular users can update only animals they created. Admins can update any animal.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnimalInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Animal" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Animals]
+      summary: Delete an animal (admin only)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Deleted }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Species:
+      type: string
+      enum: [dog, cat, bird, rabbit, horse, fish, reptile, other]
+    AnimalInput:
+      type: object
+      required: [name, species, age, weight]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 50, example: Rex }
+        species: { $ref: "#/components/schemas/Species" }
+        breed: { type: string, maxLength: 50, example: German Shepherd }
+        age: { type: integer, minimum: 0, maximum: 100, example: 3 }
+        weight: { type: number, exclusiveMinimum: true, minimum: 0, maximum: 2000, example: 32.5 }
+        adopted: { type: boolean, default: false }
+    Animal:
+      allOf:
+        - type: object
+          properties:
+            id: { type: string, example: 6650f1c2a1b2c3d4e5f60789 }
+        - $ref: "#/components/schemas/AnimalInput"
+        - type: object
+          properties:
+            createdBy: { type: string, example: admin }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    AnimalPage:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Animal" }
+        page: { type: integer, example: 1 }
+        limit: { type: integer, example: 10 }
+        total: { type: integer, example: 42 }
+        totalPages: { type: integer, example: 5 }
+    Credentials:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, pattern: "^[a-zA-Z0-9]+$", minLength: 3, maxLength: 30, example: admin }
+        password: { type: string, minLength: 6, maxLength: 72, example: admin123 }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        role: { type: string, enum: [user, admin] }
+        createdAt: { type: string, format: date-time }
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: "#/components/schemas/User" }
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+    ValidationError:
+      type: object
+      properties:
+        error: { type: string, example: validation failed }
+        details:
+          type: object
+          additionalProperties: { type: string }
+          example: { name: "must be at least 2 characters", species: "must be one of: dog, cat, bird, rabbit, horse, fish, reptile, other" }
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ValidationError" }
+    Unauthorized:
+      description: Missing or invalid token / credentials
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Not allowed for your role
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }

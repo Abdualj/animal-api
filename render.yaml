@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: animal-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: MONGO_URI
+        sync: false # set in the Render dashboard (MongoDB Atlas connection string)
+      - key: MONGO_DB
+        value: animaldb
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        sync: false # set in the Render dashboard

@@ -1,0 +1,29 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: animaldb
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:
