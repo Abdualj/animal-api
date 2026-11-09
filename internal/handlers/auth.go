@@ -91,11 +91,22 @@ func CreateUser(ctx context.Context, users *mongo.Collection, username, password
 	return user, nil
 }
 
-// EnsureAdmin seeds the admin account if it does not exist yet.
+// EnsureAdmin creates the admin account, or resets its password and role to
+// match the ADMIN_USERNAME / ADMIN_PASSWORD environment variables.
 func EnsureAdmin(ctx context.Context, users *mongo.Collection, username, password string) error {
 	err := users.FindOne(ctx, bson.M{"username": username}).Err()
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		_, err = CreateUser(ctx, users, username, password, models.RoleAdmin)
+		return err
 	}
+	if err != nil {
+		return err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	_, err = users.UpdateOne(ctx, bson.M{"username": username},
+		bson.M{"$set": bson.M{"passwordHash": string(hash), "role": models.RoleAdmin}})
 	return err
 }
