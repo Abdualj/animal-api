@@ -4,12 +4,64 @@ REST API for managing shelter animals, written in **Go (Gin)** with **MongoDB**.
 
 **Live demo:** https://animal-api-fyfq.onrender.com/docs (hosted on Render free tier + MongoDB Atlas; the first request may take ~1 min to wake up)
 
-| Assignment step | What was done |
+## Palautus – suoritetut stepit
+
+| | Linkki |
 |---|---|
-| 2. CRUD | `GET` / `POST` / `PUT` / `DELETE` on `/api/animals` |
-| 3. Advanced features (6/6) | Filtering, Sorting, Pagination, JWT Authentication, Role-based Authorization, Validation |
-| 4. Documentation | OpenAPI 3 spec in [`docs/openapi.yaml`](docs/openapi.yaml), Swagger UI served at `/docs` |
-| 5. Deployment | Multi-stage `Dockerfile` + `docker-compose.yml`; free deployment on Render (`render.yaml`) |
+| Lähdekoodi | https://github.com/Abdualj/animal-api |
+| API pilvessä | https://animal-api-fyfq.onrender.com |
+| Swagger-dokumentaatio | https://animal-api-fyfq.onrender.com/docs |
+
+> Render free -palvelu nukahtaa 15 min käyttämättömyyden jälkeen, joten ensimmäinen pyyntö voi kestää noin minuutin.
+
+**Yhteenveto:** Stepit 1–5 suoritettu (Go-toteutus).
+
+### Step 1 – Tutoriaalit ✅
+Tein Go-tutoriaalin **TÄYDENNÄ: Go REST API Tutorial 1 / 2 / 3** ja opettelin siinä REST-rajapinnan rakentamisen perusteet Go:lla (reititys, JSON-käsittely ja HTTP-statuskoodit). Valitsin toteutuskieleksi Go:n ja web-kehykseksi Ginin.
+
+### Step 2 – API ja CRUD ✅
+- Toteutettu **Go 1.23 + Gin** -kehyksellä, ja tiedot tallennetaan **MongoDB**:hen (virallinen `mongo-driver`).
+- Aiheena on eläinsuojan eläimet (Animal API). Eläimellä on kentät `name`, `species`, `breed`, `age`, `weight`, `adopted` sekä automaattiset `createdBy`, `createdAt` ja `updatedAt`.
+- CRUD-operaatiot:
+
+| Metodi | Polku | Toiminto |
+|---|---|---|
+| GET | `/api/animals` | Listaa eläimet |
+| GET | `/api/animals/{id}` | Hakee yhden eläimen |
+| POST | `/api/animals` | Luo eläimen |
+| PUT | `/api/animals/{id}` | Päivittää eläimen |
+| DELETE | `/api/animals/{id}` | Poistaa eläimen |
+
+Koodi: [`internal/handlers/animals.go`](internal/handlers/animals.go)
+
+### Step 3 – Edistyneet ominaisuudet ✅ (kaikki 6, vaatimus oli 3)
+1. **Filtering:** `GET /api/animals?species=dog&adopted=false&minAge=1&maxAge=10&search=rex`. Haku nimellä (`search`) ei erottele isoja ja pieniä kirjaimia.
+2. **Sorting:** `?sort=name|age|weight|species|createdAt&order=asc|desc`.
+3. **Pagination:** `?page=2&limit=10` (enintään 100 per sivu). Vastaus sisältää `data`, `page`, `limit`, `total` ja `totalPages`.
+4. **Authentication:** käyttäjä rekisteröityy (`POST /api/auth/register`) ja kirjautuu (`POST /api/auth/login`), jolloin hän saa **JWT-tokenin** (voimassa 24 h). Salasanat tallennetaan **bcrypt**-tiivisteinä. Token annetaan headerissa `Authorization: Bearer <token>`.
+5. **Authorization (roolit `user` ja `admin`):**
+   - Kuka tahansa voi lukea eläimiä.
+   - Kirjautunut käyttäjä voi luoda eläimiä ja muokata **vain itse luomiaan** eläimiä (muuten vastaus on `403`).
+   - Vain **admin** voi poistaa eläimiä ja muokata kaikkia eläimiä.
+   - Admin-tunnus luodaan automaattisesti käynnistyksessä ympäristömuuttujista `ADMIN_USERNAME` ja `ADMIN_PASSWORD`.
+6. **Validation:** pyyntöjen rungot tarkistetaan (esim. nimi 2–50 merkkiä, laji sallittujen arvojen listasta, ikä 0–100, paino > 0, käyttäjänimi vain kirjaimia ja numeroita, salasana vähintään 6 merkkiä). Virheestä palautuu `400` ja kenttäkohtaiset virheilmoitukset. Myös query-parametrit ja id:n muoto tarkistetaan.
+
+Koodi: [`internal/middleware/auth.go`](internal/middleware/auth.go), [`internal/handlers/auth.go`](internal/handlers/auth.go), [`internal/models/models.go`](internal/models/models.go)
+
+### Step 4 – Dokumentaatio ✅
+- API on dokumentoitu **OpenAPI 3.0** -muodossa: [`docs/openapi.yaml`](docs/openapi.yaml). Mukana ovat kaikki endpointit, parametrit, skeemat, virhevastaukset ja JWT-autentikointi.
+- API tarjoilee **Swagger UI**:n osoitteessa `/docs`. Siellä endpointeja voi testata suoraan selaimessa: kirjaudu sisään, kopioi token ja paina **Authorize**.
+
+### Step 5 – Docker ja pilvideployment ✅
+- **Dockerfile** on kaksivaiheinen (multi-stage): Go-binääri käännetään `golang`-imagessa ja ajetaan pienessä `alpine`-imagessa ilman root-oikeuksia.
+- **docker-compose.yml** käynnistää paikallisesti API:n ja MongoDB:n yhdellä komennolla.
+- **Pilvi:** API pyörii Docker-konttina **Renderissä** (ilmainen taso). Asetukset ovat tiedostossa [`render.yaml`](render.yaml), ja Render rakentaa imagen GitHub-repon Dockerfilestä. Tietokantana on **MongoDB Atlas** (ilmainen klusteri). Salaisuudet (`MONGO_URI`, `JWT_SECRET`, `ADMIN_PASSWORD`) annetaan ympäristömuuttujina, eivätkä ne ole repossa.
+- Azuren sijaan käytin Renderiä, koska se on ilmainen eikä vaadi luottokorttia.
+
+### Testaus
+Kaikki endpointit on testattu sekä paikallisesti että Renderissä curlilla. Testatut tapaukset: CRUD, suodatus, lajittelu, sivutus, `401` ilman tokenia, `403` väärällä roolilla tai toisen käyttäjän eläimellä, `400` virheellisellä datalla ja `404` olemattomalla id:llä.
+
+---
 
 ## Run locally
 
