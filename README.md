@@ -2,6 +2,8 @@
 
 REST API for managing shelter animals, written in **Go (Gin)** with **MongoDB**.
 
+**Live demo:** https://animal-api-fyfq.onrender.com/docs (hosted on Render free tier + MongoDB Atlas; the first request may take ~1 min to wake up)
+
 | Assignment step | What was done |
 |---|---|
 | 2. CRUD | `GET` / `POST` / `PUT` / `DELETE` on `/api/animals` |
