@@ -16,8 +16,15 @@ REST API for managing shelter animals, written in **Go (Gin)** with **MongoDB**.
 
 **Yhteenveto:** Stepit 1–5 suoritettu (Go-toteutus).
 
-### Step 1 – Tutoriaalit ✅
-Tein Go-tutoriaalin **TÄYDENNÄ: Go REST API Tutorial 1 / 2 / 3** ja opettelin siinä REST-rajapinnan rakentamisen perusteet Go:lla (reititys, JSON-käsittely ja HTTP-statuskoodit). Valitsin toteutuskieleksi Go:n ja web-kehykseksi Ginin.
+### Step 1 – Tutoriaali ✅
+Tehty **Go REST API Tutorial 1**: TutorialEdge, *Creating a RESTful API With Go* (https://tutorialedge.net/golang/creating-restful-api-with-golang/).
+
+- Koodi on kansiossa [`tutorial/`](tutorial/main.go).
+- Toteutettu kaikki tutoriaalin vaiheet: `net/http`-palvelin, `Article`-struct ja JSON-marshalling, `gorilla/mux`-reititin ja path-muuttujat sekä GET-, POST- ja DELETE-endpointit.
+- Lisäksi tutoriaalin lopun **Challenge** eli `PUT /article/{id}` (päivitys, palauttaa 404 jos artikkelia ei löydy).
+- Ajo: `cd tutorial && go run main.go`, jonka jälkeen API vastaa osoitteessa http://localhost:10000/articles.
+
+Tutoriaalin pohjalta varsinainen API (stepit 2–5) tehtiin Gin-kehyksellä ja MongoDB:llä.
 
 ### Step 2 – API ja CRUD ✅
 - Toteutettu **Go 1.23 + Gin** -kehyksellä, ja tiedot tallennetaan **MongoDB**:hen (virallinen `mongo-driver`).
@@ -165,6 +172,7 @@ Both services have free tiers and neither needs a credit card.
 
 ```
 main.go                      routes, Swagger UI, startup
+tutorial/                    Step 1: TutorialEdge REST API tutorial (gorilla/mux)
 internal/config              environment config
 internal/db                  Mongo connection + unique index
 internal/models              Animal / User structs + validation rules
